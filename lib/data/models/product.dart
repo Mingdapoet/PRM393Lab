@@ -16,7 +16,7 @@ class Product {
     this.description,
   });
 
-  // Copy method (tương tự copyPerson)
+  // Copy method
   Product copyProduct({
     String? id,
     String? name,
@@ -39,7 +39,8 @@ void main() {
   Product p = const Product(
     id: "P01",
     name: "iPhone 15",
-    image: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=5120&hei=2880&fmt=p-jpg&qlt=80&.v=1692923777972",
+    image:
+    "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-finish-select-202309-6-1inch-blue?wid=5120&hei=2880&fmt=p-jpg&qlt=80&.v=1692923777972",
     price: 25000000,
     description: "Điện thoại cao cấp",
   );
@@ -48,7 +49,8 @@ void main() {
   p = p.copyProduct(
     name: "iPhone 15 Pro Max",
     price: 32000000,
-    image: "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=5120&hei=2880&fmt=p-jpg&qlt=80&.v=1693009279096",
+    image:
+    "https://store.storeimages.cdn-apple.com/4982/as-images.apple.com/is/iphone-15-pro-finish-select-202309-6-1inch-naturaltitanium?wid=5120&hei=2880&fmt=p-jpg&qlt=80&.v=1693009279096",
   );
 
   print("ID: ${p.id}");

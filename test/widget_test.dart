@@ -5,7 +5,10 @@ import 'package:untitled/data/models/person.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/models/student.dart';
 import 'package:untitled/data/models/teacher.dart';
+import 'package:untitled/main.dart';
 import 'package:untitled/ui/screens/home_page.dart';
+import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
+import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
 import 'package:untitled/ui/widgets/product_widget.dart';
 
 void main() {
@@ -138,5 +141,96 @@ void main() {
     final teacher = Teacher.fromJson({'id': 'T02', 'name': 'Lan'});
 
     expect(teacher.subjects, isEmpty);
+  });
+
+  // ===================== Lab 4 =====================
+
+  group('Lab 4', () {
+    testWidgets('Menu liệt kê Bài 1 và Bài 2', (tester) async {
+      await tester.pumpWidget(const MyApp());
+
+      expect(find.text('Bài 1 - Core Widgets'), findsOneWidget);
+      expect(find.text('Bài 2 - Input Widgets'), findsOneWidget);
+    });
+
+    testWidgets('Menu mở được Bài 1 và quay lại được', (tester) async {
+      await tester.pumpWidget(const MyApp());
+
+      await tester.tap(find.text('Bài 1 - Core Widgets'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ex1 - Core Widgets'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Bài 1 - Core Widgets'), findsOneWidget);
+    });
+
+    testWidgets('Menu mở được Bài 2', (tester) async {
+      await tester.pumpWidget(const MyApp());
+
+      await tester.tap(find.text('Bài 2 - Input Widgets'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ex2 - Input Widgets'), findsOneWidget);
+    });
+
+    testWidgets('Ex1 hiển thị Text, Icon, Image, Card, ListTile', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MaterialApp(home: CoreWidgetsDemo()));
+
+      expect(find.text('Cửa hàng thú cưng'), findsOneWidget);
+      expect(find.byIcon(Icons.pets), findsWidgets);
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.byType(Card), findsNWidgets(2));
+      expect(find.byType(ListTile), findsNWidgets(2));
+    });
+
+    testWidgets('Ex2 Slider đổi giá trị và hiện ra màn hình', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: InputControlsDemo()));
+
+      // 'Số lượng: 1' hiện ở 2 chỗ: nhãn trên Slider và thẻ tổng kết đơn hàng.
+      expect(find.text('Số lượng: 1'), findsNWidgets(2));
+
+      // Bấm vào giữa thanh slider -> giá trị nhảy lên khoảng giữa (1..10).
+      final slider = tester.getRect(find.byType(Slider));
+      await tester.tapAt(slider.center);
+      await tester.pump();
+
+      // Cả hai chỗ đều cập nhật theo giá trị mới.
+      expect(find.text('Số lượng: 1'), findsNothing);
+      expect(find.textContaining('Số lượng: '), findsNWidgets(2));
+    });
+
+    testWidgets('Ex2 Switch bật thì thông tin đơn đổi theo', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: InputControlsDemo()));
+
+      expect(find.text('Gói quà: Không'), findsOneWidget);
+
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pump();
+
+      expect(find.text('Gói quà: Có'), findsOneWidget);
+    });
+
+    testWidgets('Ex2 RadioListTile đổi phương thức giao hàng', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: InputControlsDemo()));
+
+      expect(find.text('Giao hàng: Tiêu chuẩn (3-5 ngày)'), findsOneWidget);
+
+      await tester.tap(find.text('Nhận tại cửa hàng'));
+      await tester.pump();
+
+      expect(find.text('Giao hàng: Nhận tại cửa hàng'), findsOneWidget);
+    });
+
+    testWidgets('Ex2 nút mở được DatePicker', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: InputControlsDemo()));
+
+      await tester.tap(find.text('Chọn ngày giao hàng'));
+      await tester.pumpAndSettle();
+
+      // DatePicker mở ra dưới dạng dialog.
+      expect(find.byType(DatePickerDialog), findsOneWidget);
+    });
   });
 }

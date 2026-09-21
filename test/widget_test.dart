@@ -5,22 +5,74 @@ import 'package:untitled/data/models/person.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/models/student.dart';
 import 'package:untitled/data/models/teacher.dart';
-import 'package:untitled/main.dart';
+import 'package:untitled/ui/screens/home_page.dart';
+import 'package:untitled/ui/widgets/product_widget.dart';
 
 void main() {
   testWidgets('HomePage hiển thị AppBar và thông tin sản phẩm', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
 
     expect(find.text('Home page'), findsOneWidget);
     expect(find.text('Login'), findsOneWidget);
     expect(find.byIcon(Icons.menu), findsOneWidget);
 
-    expect(find.text('Name: Golden Retriever'), findsOneWidget);
-    expect(find.text('Price: '), findsOneWidget);
-    expect(find.text('1200\$'), findsOneWidget);
-    expect(find.text(' 960\$'), findsOneWidget);
+    // Hai sản phẩm, mỗi cái một nút thêm giỏ hàng.
+    expect(find.byType(ProductWidget), findsNWidgets(2));
+    expect(find.text('Thêm vào giỏ hàng'), findsNWidgets(2));
+
+    expect(find.text('Golden Retriever'), findsOneWidget);
+    expect(find.text('960\$'), findsOneWidget);
+
+    expect(find.text('Siberian Husky'), findsOneWidget);
+    expect(find.text('1500\$'), findsOneWidget);
+
+    // '1200$' xuất hiện 2 lần: giá gốc của Golden và giá sau giảm của Husky.
+    expect(find.text('1200\$'), findsNWidgets(2));
+  });
+
+  testWidgets('Ảnh giữ đúng kích thước 300x200', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    final box = tester.widget<SizedBox>(
+      find
+          .descendant(
+            of: find.byType(ProductWidget).first,
+            matching: find.byType(SizedBox),
+          )
+          .first,
+    );
+
+    expect(box.width, 300);
+    expect(box.height, 200);
+  });
+
+  testWidgets('Bấm nút hiện SnackBar xác nhận', (WidgetTester tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+
+    await tester.tap(find.text('Thêm vào giỏ hàng').first);
+    await tester.pump();
+
+    expect(
+      find.text('Đã thêm Golden Retriever vào giỏ hàng'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Layout không tràn khi cửa sổ hẹp', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(420, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: HomePage()));
+    await tester.pumpAndSettle();
+
+    // Thông tin vẫn còn, không bị RenderFlex overflow.
+    expect(tester.takeException(), isNull);
+    expect(find.text('Golden Retriever'), findsOneWidget);
+    expect(find.text('Thêm vào giỏ hàng'), findsWidgets);
   });
 
   test('Product.copyTo chỉ thay đổi field được truyền vào', () {

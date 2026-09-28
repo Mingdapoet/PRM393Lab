@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:untitled/ui/cart_scope.dart';
 import 'package:untitled/ui/screens/lab4/lab4_home.dart';
 import 'package:untitled/ui/theme_controller.dart';
 
@@ -17,6 +18,15 @@ class _MyAppState extends State<MyApp> {
   // Lab 4 - Ex4: state của Dark Mode nằm ở đây vì themeMode
   // thuộc MaterialApp, trên cùng cây widget.
   bool _isDarkMode = false;
+
+  // Giỏ hàng dùng chung cho mọi màn hình của cửa hàng.
+  final _cart = CartModel();
+
+  @override
+  void dispose() {
+    _cart.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +71,7 @@ class _MyAppState extends State<MyApp> {
       builder: (context, child) => ThemeController(
         isDarkMode: _isDarkMode,
         onChanged: (value) => setState(() => _isDarkMode = value),
-        child: child!,
+        child: CartScope(cart: _cart, child: child!),
       ),
 
       home: const Lab4Home(),

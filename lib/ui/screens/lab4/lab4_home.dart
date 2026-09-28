@@ -1,12 +1,12 @@
 // Lab 4 - Màn hình menu: mở từng bài trong 5 bài.
 
 import 'package:flutter/material.dart';
-import 'package:untitled/ui/screens/home_page.dart';
 import 'package:untitled/ui/screens/lab4/app_structure_demo.dart';
 import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
 import 'package:untitled/ui/screens/lab4/debug_fix_demo.dart';
 import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
 import 'package:untitled/ui/screens/lab4/layout_basics_demo.dart';
+import 'package:untitled/ui/screens/shop_shell.dart';
 import 'package:untitled/ui/theme_controller.dart';
 
 class Lab4Home extends StatelessWidget {
@@ -69,10 +69,10 @@ class Lab4Home extends StatelessWidget {
           const Divider(height: 32),
           _ExerciseTile(
             number: 0,
-            title: "Lab trước - Product List",
-            subtitle: "Danh sách sản phẩm (Lab 2)",
+            title: "Lab trước - Shop",
+            subtitle: "Danh sách sản phẩm, chi tiết, giỏ hàng, mã giảm giá",
             icon: Icons.shopping_bag,
-            onTap: () => _open(context, const HomePage()),
+            onTap: () => _open(context, const ShopShell()),
           ),
         ],
       ),

@@ -5,81 +5,24 @@ import 'package:untitled/data/models/person.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/models/student.dart';
 import 'package:untitled/data/models/teacher.dart';
+import 'package:untitled/data/product_repository.dart';
 import 'package:untitled/main.dart';
-import 'package:untitled/ui/screens/home_page.dart';
+import 'package:untitled/ui/cart_scope.dart';
 import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
 import 'package:untitled/ui/screens/lab4/debug_fix_demo.dart';
 import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
 import 'package:untitled/ui/screens/lab4/layout_basics_demo.dart';
-import 'package:untitled/ui/widgets/product_widget.dart';
+import 'package:untitled/ui/screens/shop_shell.dart';
+import 'package:untitled/ui/widgets/product_card.dart';
+
+/// Dựng app cửa hàng kèm giỏ hàng để test.
+Widget shopApp([CartModel? cart]) {
+  return MaterialApp(
+    home: CartScope(cart: cart ?? CartModel(), child: const ShopShell()),
+  );
+}
 
 void main() {
-  testWidgets('HomePage hiển thị AppBar và thông tin sản phẩm', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
-
-    expect(find.text('Home page'), findsOneWidget);
-    expect(find.text('Login'), findsOneWidget);
-    expect(find.byIcon(Icons.menu), findsOneWidget);
-
-    // Hai sản phẩm, mỗi cái một nút thêm giỏ hàng.
-    expect(find.byType(ProductWidget), findsNWidgets(2));
-    expect(find.text('Thêm vào giỏ hàng'), findsNWidgets(2));
-
-    expect(find.text('Golden Retriever'), findsOneWidget);
-    expect(find.text('960\$'), findsOneWidget);
-
-    expect(find.text('Siberian Husky'), findsOneWidget);
-    expect(find.text('1500\$'), findsOneWidget);
-
-    // '1200$' xuất hiện 2 lần: giá gốc của Golden và giá sau giảm của Husky.
-    expect(find.text('1200\$'), findsNWidgets(2));
-  });
-
-  testWidgets('Ảnh giữ đúng kích thước 300x200', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
-
-    final box = tester.widget<SizedBox>(
-      find
-          .descendant(
-            of: find.byType(ProductWidget).first,
-            matching: find.byType(SizedBox),
-          )
-          .first,
-    );
-
-    expect(box.width, 300);
-    expect(box.height, 200);
-  });
-
-  testWidgets('Bấm nút hiện SnackBar xác nhận', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
-
-    await tester.tap(find.text('Thêm vào giỏ hàng').first);
-    await tester.pump();
-
-    expect(
-      find.text('Đã thêm Golden Retriever vào giỏ hàng'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('Layout không tràn khi cửa sổ hẹp', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(420, 900);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await tester.pumpWidget(const MaterialApp(home: HomePage()));
-    await tester.pumpAndSettle();
-
-    // Thông tin vẫn còn, không bị RenderFlex overflow.
-    expect(tester.takeException(), isNull);
-    expect(find.text('Golden Retriever'), findsOneWidget);
-    expect(find.text('Thêm vào giỏ hàng'), findsWidgets);
-  });
-
   test('Product.copyTo chỉ thay đổi field được truyền vào', () {
     const p = Product(id: 1, name: 'iPhone 15', price: 1000);
     final copy = p.copyTo(name: 'iPhone 15 Pro', price: 1500);
@@ -143,6 +86,206 @@ void main() {
     final teacher = Teacher.fromJson({'id': 'T02', 'name': 'Lan'});
 
     expect(teacher.subjects, isEmpty);
+  });
+
+  // ===================== Shop (Lab trước) =====================
+
+  group('Shop', () {
+    test('finalPrice trừ đúng phần trăm giảm giá', () {
+      const p = Product(id: 1, name: 'iPhone 15', price: 999,
+          discountPercent: 9);
+
+      expect(p.finalPrice, 909);
+      expect(p.hasDiscount, isTrue);
+    });
+
+    test('Không giảm giá thì finalPrice bằng giá gốc', () {
+      const p = Product(id: 2, name: 'Watch', price: 399);
+
+      expect(p.finalPrice, 399);
+      expect(p.hasDiscount, isFalse);
+    });
+
+    test('Thêm cùng sản phẩm 2 lần thì cộng dồn số lượng', () {
+      final cart = CartModel();
+      const p = Product(id: 1, name: 'iPhone 15', price: 100);
+
+      cart.add(p);
+      cart.add(p, quantity: 2);
+
+      expect(cart.items.length, 1);
+      expect(cart.totalQuantity, 3);
+      expect(cart.subtotal, 300);
+    });
+
+    test('Đặt số lượng về 0 thì bỏ sản phẩm khỏi giỏ', () {
+      final cart = CartModel();
+      const p = Product(id: 1, name: 'iPhone 15', price: 100);
+
+      cart.add(p);
+      cart.setQuantity(p, 0);
+
+      expect(cart.isEmpty, isTrue);
+    });
+
+    test('Mã SALE10 giảm 10% tổng đơn', () {
+      final cart = CartModel();
+      cart.add(const Product(id: 1, name: 'A', price: 500));
+
+      expect(cart.applyCoupon('sale10'), isNull);
+      expect(cart.discount, 50);
+      expect(cart.total, 450);
+    });
+
+    test('Mã không tồn tại thì báo lỗi, không áp', () {
+      final cart = CartModel();
+      cart.add(const Product(id: 1, name: 'A', price: 500));
+
+      expect(cart.applyCoupon('KHONGCO'), isNotNull);
+      expect(cart.coupon, isNull);
+      expect(cart.discount, 0);
+    });
+
+    test('Mã GIAM50 cần đơn tối thiểu 200\$', () {
+      final cart = CartModel();
+      cart.add(const Product(id: 1, name: 'A', price: 100));
+
+      // Đơn 100$ chưa đủ điều kiện.
+      expect(cart.applyCoupon('GIAM50'), isNotNull);
+      expect(cart.discount, 0);
+
+      // Thêm hàng cho đủ 200$ thì áp được.
+      cart.add(const Product(id: 2, name: 'B', price: 150));
+      expect(cart.applyCoupon('GIAM50'), isNull);
+      expect(cart.discount, 50);
+    });
+
+    testWidgets('Danh sách hiện sản phẩm kèm badge giảm giá', (tester) async {
+      await tester.pumpWidget(shopApp());
+
+      expect(find.text('Products'), findsOneWidget);
+      expect(find.text('iPhone 15'), findsOneWidget);
+
+      // iPhone 15: 999$ giảm 9% -> 909$.
+      expect(find.text('-9%'), findsOneWidget);
+      expect(find.text('909\$'), findsOneWidget);
+    });
+
+    testWidgets('Ô tìm kiếm lọc theo tên sản phẩm', (tester) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.enterText(find.byType(TextField).first, 'mac');
+      await tester.pump();
+
+      expect(find.text('MacBook Air'), findsOneWidget);
+      expect(find.text('iPhone 15'), findsNothing);
+    });
+
+    testWidgets('Bấm sản phẩm thì mở trang chi tiết', (tester) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.tap(find.byType(ProductCard).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Product Detail'), findsWidgets);
+      expect(find.text('Mô tả'), findsOneWidget);
+      expect(find.text('Thêm vào giỏ'), findsOneWidget);
+    });
+
+    testWidgets('Trang chi tiết đổi số lượng thì tạm tính đổi theo', (
+      tester,
+    ) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.tap(find.byType(ProductCard).first);
+      await tester.pumpAndSettle();
+
+      // iPhone 15 giá sau giảm 909$, số lượng 1.
+      expect(find.text('909\$'), findsWidgets);
+
+      // Nút tăng nằm dưới vùng nhìn thấy -> cuộn tới trước khi bấm.
+      await tester.ensureVisible(find.byIcon(Icons.add));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.add));
+      await tester.pump();
+
+      // 909 x 2 = 1818.
+      expect(find.text('1818\$'), findsOneWidget);
+    });
+
+    testWidgets('Nút "Mua ngay" thêm hàng rồi chuyển sang tab Cart', (
+      tester,
+    ) async {
+      final cart = CartModel();
+      await tester.pumpWidget(shopApp(cart));
+
+      await tester.tap(find.byType(ProductCard).first);
+      await tester.pumpAndSettle();
+
+      // Nút nằm cuối trang -> cuộn tới trước khi bấm.
+      await tester.ensureVisible(find.text('Mua ngay'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mua ngay'));
+      await tester.pumpAndSettle();
+
+      expect(cart.totalQuantity, 1);
+      expect(find.text('Thanh toán'), findsOneWidget);
+    });
+
+    testWidgets('Nút giỏ trên AppBar mở được tab Cart', (tester) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.tap(find.byIcon(Icons.shopping_cart));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Giỏ hàng đang trống'), findsOneWidget);
+    });
+
+    testWidgets('Tab Cart dưới thanh điều hướng mở được giỏ hàng', (
+      tester,
+    ) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.tap(find.text('Cart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Giỏ hàng đang trống'), findsOneWidget);
+    });
+
+    testWidgets('Áp mã giảm giá trong giỏ thì tổng tiền giảm', (tester) async {
+      final cart = CartModel();
+      cart.add(kProducts.first); // iPhone 15 -> 909$
+
+      await tester.pumpWidget(shopApp(cart));
+      await tester.tap(find.text('Cart'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('909\$'), findsWidgets);
+
+      // Bấm chip SALE10 là áp mã luôn.
+      await tester.tap(find.text('SALE10'));
+      await tester.pumpAndSettle();
+
+      expect(cart.discount, 91);
+      expect(find.text('818\$'), findsOneWidget);
+    });
+
+    testWidgets('Giỏ không tràn trên màn hình nhỏ', (tester) async {
+      tester.view.physicalSize = const Size(400, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final cart = CartModel();
+      cart.add(kProducts.first);
+      cart.add(kProducts[1]);
+
+      await tester.pumpWidget(shopApp(cart));
+      await tester.tap(find.text('Cart'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
   });
 
   // ===================== Lab 4 =====================

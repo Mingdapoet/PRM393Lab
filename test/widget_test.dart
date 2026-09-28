@@ -8,7 +8,9 @@ import 'package:untitled/data/models/teacher.dart';
 import 'package:untitled/main.dart';
 import 'package:untitled/ui/screens/home_page.dart';
 import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
+import 'package:untitled/ui/screens/lab4/debug_fix_demo.dart';
 import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
+import 'package:untitled/ui/screens/lab4/layout_basics_demo.dart';
 import 'package:untitled/ui/widgets/product_widget.dart';
 
 void main() {
@@ -146,11 +148,14 @@ void main() {
   // ===================== Lab 4 =====================
 
   group('Lab 4', () {
-    testWidgets('Menu liệt kê Bài 1 và Bài 2', (tester) async {
+    testWidgets('Menu liệt kê đủ 5 bài', (tester) async {
       await tester.pumpWidget(const MyApp());
 
       expect(find.text('Bài 1 - Core Widgets'), findsOneWidget);
       expect(find.text('Bài 2 - Input Widgets'), findsOneWidget);
+      expect(find.text('Bài 3 - Layout Basics'), findsOneWidget);
+      expect(find.text('Bài 4 - App Structure'), findsOneWidget);
+      expect(find.text('Bài 5 - Debug & Fix'), findsOneWidget);
     });
 
     testWidgets('Menu mở được Bài 1 và quay lại được', (tester) async {
@@ -231,6 +236,107 @@ void main() {
 
       // DatePicker mở ra dưới dạng dialog.
       expect(find.byType(DatePickerDialog), findsOneWidget);
+    });
+
+    testWidgets('Ex3 ListView.builder dựng danh sách phim', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: LayoutBasicsDemo()));
+
+      expect(find.text('Phim đang chiếu'), findsOneWidget);
+      expect(find.text('Inception'), findsOneWidget);
+
+      // Hai ListView: hàng thể loại (ngang) và danh sách phim (dọc).
+      expect(find.byType(ListView), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Ex3 không tràn trên màn hình nhỏ', (tester) async {
+      tester.view.physicalSize = const Size(400, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const MaterialApp(home: LayoutBasicsDemo()));
+      await tester.pumpAndSettle();
+
+      // Expanded giữ ListView trong chiều cao hữu hạn -> không overflow.
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Ex4 có Scaffold, AppBar và FAB', (tester) async {
+      await tester.pumpWidget(const MyApp());
+
+      await tester.tap(find.text('Bài 4 - App Structure'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppBar), findsOneWidget);
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+
+      // FAB thêm được việc mới vào danh sách.
+      expect(find.text('Công việc số 3'), findsNothing);
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pump();
+      expect(find.text('Công việc số 3'), findsOneWidget);
+    });
+
+    testWidgets('Ex4 bật Dark Mode đổi theme toàn app', (tester) async {
+      await tester.pumpWidget(const MyApp());
+
+      MaterialApp app() => tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(app().themeMode, ThemeMode.light);
+
+      await tester.tap(find.byIcon(Icons.dark_mode));
+      await tester.pump();
+
+      expect(app().themeMode, ThemeMode.dark);
+    });
+
+    testWidgets('Ex4 Switch trong route con phản ánh đúng theme', (
+      tester,
+    ) async {
+      await tester.pumpWidget(const MyApp());
+
+      await tester.tap(find.text('Bài 4 - App Structure'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Đang tắt'), findsOneWidget);
+
+      // Bật Dark Mode từ chính màn hình con (đã mở bằng Navigator.push).
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
+
+      // Màn hình con phải rebuild theo, không giữ giá trị lúc push.
+      expect(find.text('Đang bật'), findsOneWidget);
+      expect(
+        tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+        ThemeMode.dark,
+      );
+    });
+
+    testWidgets('Ex5 setState làm bộ đếm cập nhật', (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: DebugFixDemo()));
+
+      expect(find.text('Đếm: 0'), findsOneWidget);
+
+      // Nút nằm dưới vùng nhìn thấy -> cuộn tới trước khi bấm.
+      await tester.ensureVisible(find.text('Tăng'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tăng'));
+      await tester.pump();
+
+      expect(find.text('Đếm: 1'), findsOneWidget);
+    });
+
+    testWidgets('Ex5 không tràn trên màn hình nhỏ', (tester) async {
+      tester.view.physicalSize = const Size(400, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const MaterialApp(home: DebugFixDemo()));
+      await tester.pumpAndSettle();
+
+      // SingleChildScrollView giúp cuộn thay vì RenderFlex overflow.
+      expect(tester.takeException(), isNull);
     });
   });
 }

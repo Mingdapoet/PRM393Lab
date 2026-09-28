@@ -1,19 +1,32 @@
-// Lab 4 - Màn hình menu: mở Bài 1 và Bài 2.
+// Lab 4 - Màn hình menu: mở từng bài trong 5 bài.
 
 import 'package:flutter/material.dart';
 import 'package:untitled/ui/screens/home_page.dart';
+import 'package:untitled/ui/screens/lab4/app_structure_demo.dart';
 import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
+import 'package:untitled/ui/screens/lab4/debug_fix_demo.dart';
 import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
+import 'package:untitled/ui/screens/lab4/layout_basics_demo.dart';
+import 'package:untitled/ui/theme_controller.dart';
 
 class Lab4Home extends StatelessWidget {
   const Lab4Home({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = ThemeController.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Lab 4 - Flutter UI Fundamentals"),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: theme.isDarkMode ? "Light Mode" : "Dark Mode",
+            icon: Icon(theme.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: theme.toggle,
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -31,6 +44,27 @@ class Lab4Home extends StatelessWidget {
             subtitle: "Slider, Switch, RadioListTile, DatePicker",
             icon: Icons.tune,
             onTap: () => _open(context, const InputControlsDemo()),
+          ),
+          _ExerciseTile(
+            number: 3,
+            title: "Layout Basics",
+            subtitle: "Column, Row, Padding, ListView.builder",
+            icon: Icons.view_agenda,
+            onTap: () => _open(context, const LayoutBasicsDemo()),
+          ),
+          _ExerciseTile(
+            number: 4,
+            title: "App Structure",
+            subtitle: "Scaffold, AppBar, FAB, ThemeData, Dark Mode",
+            icon: Icons.dashboard,
+            onTap: () => _open(context, const AppStructureDemo()),
+          ),
+          _ExerciseTile(
+            number: 5,
+            title: "Debug & Fix",
+            subtitle: "4 lỗi UI thường gặp và cách sửa",
+            icon: Icons.bug_report,
+            onTap: () => _open(context, const DebugFixDemo()),
           ),
           const Divider(height: 32),
           _ExerciseTile(

@@ -1,25 +1,84 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:untitled/data/models/person.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/models/student.dart';
 import 'package:untitled/data/models/teacher.dart';
 import 'package:untitled/data/product_repository.dart';
+import 'package:untitled/data/setting_repository.dart';
 import 'package:untitled/main.dart';
+import 'package:untitled/ui/auth_scope.dart';
 import 'package:untitled/ui/cart_scope.dart';
 import 'package:untitled/ui/screens/lab4/core_widgets_demo.dart';
 import 'package:untitled/ui/screens/lab4/debug_fix_demo.dart';
 import 'package:untitled/ui/screens/lab4/input_controls_demo.dart';
 import 'package:untitled/ui/screens/lab4/layout_basics_demo.dart';
+import 'package:untitled/ui/screens/login_page.dart';
 import 'package:untitled/ui/screens/shop_shell.dart';
+import 'package:untitled/ui/view_models/language_view_model.dart';
+import 'package:untitled/ui/view_models/theme_view_model.dart';
 import 'package:untitled/ui/widgets/product_card.dart';
 
-/// Dựng app cửa hàng kèm giỏ hàng để test.
+/// Dựng app cửa hàng kèm giỏ hàng để test (đã đăng nhập sẵn).
 Widget shopApp([CartModel? cart]) {
+  final auth = AuthModel()..login('admin', '123456');
   return MaterialApp(
-    home: CartScope(cart: cart ?? CartModel(), child: const ShopShell()),
+    home: AuthScope(
+      auth: auth,
+      child: CartScope(cart: cart ?? CartModel(), child: const ShopShell()),
+    ),
   );
+}
+
+/// Dựng app thật trong ProviderScope, SharedPreferences giả lập trong bộ nhớ.
+Future<void> pumpMyApp(
+  WidgetTester tester, [
+  Map<String, Object> savedSettings = const {},
+]) async {
+  SharedPreferences.setMockInitialValues(savedSettings);
+  final prefs = await SharedPreferences.getInstance();
+
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      child: const MyApp(),
+    ),
+  );
+}
+
+/// Tạo container Riverpod để test ViewModel không cần dựng UI.
+Future<ProviderContainer> makeContainer([
+  Map<String, Object> savedSettings = const {},
+]) async {
+  SharedPreferences.setMockInitialValues(savedSettings);
+  final prefs = await SharedPreferences.getInstance();
+  final container = ProviderContainer(
+    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+/// Mở app thật, vào mục Shop ở menu Lab 4 (sẽ gặp màn hình đăng nhập).
+Future<void> openShopFromMenu(WidgetTester tester) async {
+  await pumpMyApp(tester);
+  await tester.tap(find.text('Lab trước - Shop'));
+  await tester.pumpAndSettle();
+}
+
+/// Điền form đăng nhập rồi bấm Login.
+Future<void> fillLogin(
+  WidgetTester tester, {
+  required String username,
+  required String password,
+}) async {
+  await tester.enterText(find.byType(TextFormField).at(0), username);
+  await tester.enterText(find.byType(TextFormField).at(1), password);
+  await tester.tap(find.text('Login'));
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -288,11 +347,210 @@ void main() {
     });
   });
 
+  // ===================== Login / Logout =====================
+
+  group('Login', () {
+    test('validateUsername bắt các trường hợp sai', () {
+      expect(validateUsername(''), isNotNull);
+      expect(validateUsername('   '), isNotNull);
+      expect(validateUsername('ab'), isNotNull);
+      expect(validateUsername('a' * 21), isNotNull);
+      expect(validateUsername('minh nguyen'), isNotNull);
+      expect(validateUsername('minh@'), isNotNull);
+      expect(validateUsername('minh_01'), isNull);
+    });
+
+    test('validatePassword bắt các trường hợp sai', () {
+      expect(validatePassword(''), isNotNull);
+      expect(validatePassword('12345'), isNotNull);
+      expect(validatePassword('123 456'), isNotNull);
+      expect(validatePassword('123456'), isNull);
+    });
+
+    test('AuthModel đăng nhập đúng thì lưu user, đăng xuất thì xoá', () {
+      final auth = AuthModel();
+
+      expect(auth.login('admin', 'sai_mat_khau'), isNotNull);
+      expect(auth.isLoggedIn, isFalse);
+
+      expect(auth.login(' admin ', '123456'), isNull);
+      expect(auth.user?.displayName, 'Admin');
+
+      auth.logout();
+      expect(auth.isLoggedIn, isFalse);
+    });
+
+    testWidgets('Vào Shop khi chưa đăng nhập thì gặp màn hình Login', (
+      tester,
+    ) async {
+      await openShopFromMenu(tester);
+
+      expect(find.text('Đăng nhập'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Login'), findsOneWidget);
+      expect(find.text('Products'), findsNothing);
+    });
+
+    testWidgets('Bấm Login khi để trống thì báo lỗi cả hai ô', (tester) async {
+      await openShopFromMenu(tester);
+
+      await tester.tap(find.text('Login'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Vui lòng nhập tên đăng nhập.'), findsOneWidget);
+      expect(find.text('Vui lòng nhập mật khẩu.'), findsOneWidget);
+      expect(find.text('Products'), findsNothing);
+    });
+
+    testWidgets('Mật khẩu ngắn thì báo lỗi độ dài', (tester) async {
+      await openShopFromMenu(tester);
+      await fillLogin(tester, username: 'admin', password: '123');
+
+      expect(find.text('Mật khẩu phải có ít nhất 6 ký tự.'), findsOneWidget);
+    });
+
+    testWidgets('Sai mật khẩu thì báo lỗi, không vào Shop', (tester) async {
+      await openShopFromMenu(tester);
+      await fillLogin(tester, username: 'admin', password: '654321');
+
+      expect(find.text('Sai tên đăng nhập hoặc mật khẩu.'), findsOneWidget);
+      expect(find.text('Products'), findsNothing);
+    });
+
+    testWidgets('Đăng nhập đúng thì vào Shop và hiện lời chào', (tester) async {
+      await openShopFromMenu(tester);
+      await fillLogin(tester, username: 'admin', password: '123456');
+
+      expect(find.text('Products'), findsOneWidget);
+      expect(find.text('Xin chào, Admin!'), findsOneWidget);
+    });
+
+    testWidgets('Cancel quay về menu Lab 4', (tester) async {
+      await openShopFromMenu(tester);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lab trước - Shop'), findsOneWidget);
+      expect(find.text('Đăng nhập'), findsNothing);
+    });
+
+    testWidgets('Đăng xuất thì quay lại màn hình Login và xoá giỏ', (
+      tester,
+    ) async {
+      await openShopFromMenu(tester);
+      await fillLogin(tester, username: 'admin', password: '123456');
+
+      // Bỏ 1 món vào giỏ trước khi đăng xuất.
+      final cart = CartScope.of(tester.element(find.text('Products')));
+      cart.add(kProducts.first);
+      await tester.pump();
+
+      await tester.tap(find.byIcon(Icons.logout));
+      await tester.pumpAndSettle();
+      expect(find.text('Bạn có chắc muốn đăng xuất? Giỏ hàng sẽ bị xoá.'),
+          findsOneWidget);
+
+      // Bấm nút "Đăng xuất" trong dialog (không phải tiêu đề dialog).
+      await tester.tap(find.widgetWithText(FilledButton, 'Đăng xuất'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Login'), findsOneWidget);
+      expect(find.text('Products'), findsNothing);
+      expect(cart.isEmpty, isTrue);
+    });
+
+    testWidgets('Huỷ trong dialog thì vẫn ở lại Shop', (tester) async {
+      await tester.pumpWidget(shopApp());
+
+      await tester.tap(find.byIcon(Icons.logout));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Huỷ'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Products'), findsOneWidget);
+    });
+  });
+
+  // ===================== Settings (Riverpod) =====================
+
+  group('Settings', () {
+    test('Chưa lưu gì thì mặc định: sáng, tiếng Việt', () async {
+      final container = await makeContainer();
+
+      expect(container.read(themeViewModelProvider), ThemeMode.light);
+      expect(container.read(languageViewModelProvider), const Locale('vi'));
+    });
+
+    test('Đọc lại cài đặt đã lưu từ trước', () async {
+      final container = await makeContainer({
+        'theme_mode': 'dark',
+        'language_code': 'en',
+      });
+
+      expect(container.read(themeViewModelProvider), ThemeMode.dark);
+      expect(container.read(languageViewModelProvider), const Locale('en'));
+    });
+
+    test('Dữ liệu lưu bị lạ thì quay về mặc định', () async {
+      final container = await makeContainer({
+        'theme_mode': 'xyz',
+        'language_code': 'fr',
+      });
+
+      expect(container.read(themeViewModelProvider), ThemeMode.light);
+      expect(container.read(languageViewModelProvider), const Locale('vi'));
+    });
+
+    test('ThemeViewModel.toggle đổi state và lưu xuống máy', () async {
+      final container = await makeContainer();
+
+      await container.read(themeViewModelProvider.notifier).toggle();
+
+      expect(container.read(themeViewModelProvider), ThemeMode.dark);
+      final prefs = container.read(sharedPreferencesProvider);
+      expect(prefs.getString('theme_mode'), 'dark');
+    });
+
+    test('LanguageViewModel đổi và lưu ngôn ngữ', () async {
+      final container = await makeContainer();
+      final vm = container.read(languageViewModelProvider.notifier);
+
+      await vm.setLocale(const Locale('en'));
+      expect(container.read(languageViewModelProvider), const Locale('en'));
+      expect(
+        container.read(settingRepositoryProvider).getLocale(),
+        const Locale('en'),
+      );
+
+      await vm.toggle();
+      expect(container.read(languageViewModelProvider), const Locale('vi'));
+    });
+
+    test('LanguageViewModel bỏ qua ngôn ngữ không hỗ trợ', () async {
+      final container = await makeContainer();
+
+      await container
+          .read(languageViewModelProvider.notifier)
+          .setLocale(const Locale('fr'));
+
+      expect(container.read(languageViewModelProvider), const Locale('vi'));
+    });
+
+    testWidgets('Mở app với cài đặt đã lưu thì dùng luôn', (tester) async {
+      await pumpMyApp(tester, {'theme_mode': 'dark', 'language_code': 'en'});
+
+      final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+      expect(app.themeMode, ThemeMode.dark);
+      expect(app.locale, const Locale('en'));
+    });
+  });
+
   // ===================== Lab 4 =====================
 
   group('Lab 4', () {
     testWidgets('Menu liệt kê đủ 5 bài', (tester) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       expect(find.text('Bài 1 - Core Widgets'), findsOneWidget);
       expect(find.text('Bài 2 - Input Widgets'), findsOneWidget);
@@ -302,19 +560,21 @@ void main() {
     });
 
     testWidgets('Menu mở được Bài 1 và quay lại được', (tester) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       await tester.tap(find.text('Bài 1 - Core Widgets'));
       await tester.pumpAndSettle();
       expect(find.text('Ex1 - Core Widgets'), findsOneWidget);
 
-      await tester.pageBack();
+      // pageBack() tìm tooltip tiếng Anh "Back"; app mặc định tiếng Việt
+      // nên bấm thẳng vào BackButton.
+      await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(find.text('Bài 1 - Core Widgets'), findsOneWidget);
     });
 
     testWidgets('Menu mở được Bài 2', (tester) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       await tester.tap(find.text('Bài 2 - Input Widgets'));
       await tester.pumpAndSettle();
@@ -406,7 +666,7 @@ void main() {
     });
 
     testWidgets('Ex4 có Scaffold, AppBar và FAB', (tester) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       await tester.tap(find.text('Bài 4 - App Structure'));
       await tester.pumpAndSettle();
@@ -422,7 +682,7 @@ void main() {
     });
 
     testWidgets('Ex4 bật Dark Mode đổi theme toàn app', (tester) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       MaterialApp app() => tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(app().themeMode, ThemeMode.light);
@@ -436,7 +696,7 @@ void main() {
     testWidgets('Ex4 Switch trong route con phản ánh đúng theme', (
       tester,
     ) async {
-      await tester.pumpWidget(const MyApp());
+      await pumpMyApp(tester);
 
       await tester.tap(find.text('Bài 4 - App Structure'));
       await tester.pumpAndSettle();

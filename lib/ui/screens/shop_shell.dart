@@ -1,10 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/product_repository.dart';
+import 'package:untitled/ui/auth_scope.dart';
 import 'package:untitled/ui/cart_scope.dart';
 import 'package:untitled/ui/screens/cart_page.dart';
 import 'package:untitled/ui/screens/home_page.dart';
+import 'package:untitled/ui/screens/login_page.dart';
 import 'package:untitled/ui/screens/product_detail_page.dart';
+
+/// Cổng vào cửa hàng: chưa đăng nhập thì hiện LoginPage.
+///
+/// Đọc AuthScope nên tự rebuild khi trạng thái đổi: đăng nhập xong thì
+/// chuyển sang ShopShell, đăng xuất thì quay lại LoginPage.
+class ShopGate extends StatelessWidget {
+  const ShopGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (AuthScope.of(context).isLoggedIn) return const ShopShell();
+
+    // Cancel: đóng màn hình, quay về menu Lab 4.
+    return LoginPage(onCancel: () => Navigator.of(context).maybePop());
+  }
+}
 
 /// Khung chính của app: 3 tab Home / Product Detail / Cart.
 ///

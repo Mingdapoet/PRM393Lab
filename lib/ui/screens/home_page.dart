@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:untitled/data/models/product.dart';
 import 'package:untitled/data/product_repository.dart';
+import 'package:untitled/ui/auth_scope.dart';
 import 'package:untitled/ui/cart_scope.dart';
 import 'package:untitled/ui/widgets/product_card.dart';
 
@@ -37,15 +38,47 @@ class _HomePageState extends State<HomePage> {
         .toList();
   }
 
+  /// Hỏi lại rồi mới đăng xuất. Đăng xuất thì xoá luôn giỏ hàng để
+  /// người đăng nhập sau không thấy giỏ của người trước.
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Đăng xuất"),
+        content: const Text("Bạn có chắc muốn đăng xuất? Giỏ hàng sẽ bị xoá."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text("Huỷ"),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text("Đăng xuất"),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !mounted) return;
+    CartScope.of(context).clear();
+    AuthScope.of(context).logout();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = CartScope.of(context);
+    final user = AuthScope.of(context).user;
     final products = _visibleProducts;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Products"),
         actions: [
+          IconButton(
+            tooltip: "Đăng xuất (${user?.displayName ?? ""})",
+            onPressed: _confirmLogout,
+            icon: const Icon(Icons.logout),
+          ),
           // Nút giỏ hàng: badge đỏ hiện số món đang có.
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -64,6 +97,17 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
+          if (user != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Xin chào, ${user.displayName}!",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(

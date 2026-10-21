@@ -72,7 +72,7 @@ class Lab4Home extends StatelessWidget {
             title: "Lab trước - Shop",
             subtitle: "Danh sách sản phẩm, chi tiết, giỏ hàng, mã giảm giá",
             icon: Icons.shopping_bag,
-            onTap: () => _open(context, const ShopShell()),
+            onTap: () => _open(context, const ShopGate()),
           ),
         ],
       ),
